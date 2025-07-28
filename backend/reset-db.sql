@@ -1,7 +1,10 @@
 -- Script para resetear completamente la base de datos
 -- ADVERTENCIA: Esto eliminará todos los datos existentes
 
--- Eliminar tablas en orden correcto (por las foreign keys)
+-- Deshabilitar verificación de foreign keys temporalmente
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- Eliminar TODAS las tablas sin importar las foreign keys
 DROP TABLE IF EXISTS detalle_venta;
 DROP TABLE IF EXISTS detalles_venta;
 DROP TABLE IF EXISTS precios_combinaciones;
@@ -16,6 +19,9 @@ DROP TABLE IF EXISTS codigos_estampado;
 DROP TABLE IF EXISTS tipos_tela;
 DROP TABLE IF EXISTS proveedores;
 DROP TABLE IF EXISTS colores;
+
+-- Habilitar verificación de foreign keys
+SET FOREIGN_KEY_CHECKS = 1;
 
 -- Crear tablas con la estructura correcta
 CREATE TABLE `colores` (
