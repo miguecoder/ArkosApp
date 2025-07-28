@@ -1,27 +1,33 @@
-# Dockerfile para el backend de Camisetas App
+# Usar Node.js 18 Alpine como base
 FROM node:18-alpine
 
-# Crear directorio de trabajo
+# Establecer directorio de trabajo
 WORKDIR /app
 
-# Copiar package.json y package-lock.json
-COPY backend/package*.json ./
+# Copiar package.json de la raíz
+COPY package*.json ./
 
-# Instalar dependencias
+# Copiar package.json del backend
+COPY backend/package*.json ./backend/
+
+# Instalar dependencias del backend
+WORKDIR /app/backend
 RUN npm ci --only=production
 
-# Copiar código fuente
-COPY backend/ ./
+# Volver al directorio raíz
+WORKDIR /app
 
-# Crear directorio para uploads
-RUN mkdir -p uploads
+# Copiar todo el código del backend
+COPY backend/ ./backend/
+
+# Crear directorio de uploads
+RUN mkdir -p backend/uploads
+
+# Establecer directorio de trabajo al backend
+WORKDIR /app/backend
 
 # Exponer puerto
 EXPOSE 5000
 
-# Variables de entorno por defecto
-ENV NODE_ENV=production
-ENV PORT=5000
-
-# Comando para iniciar la aplicación
-CMD ["node", "server.js"] 
+# Comando de inicio
+CMD ["npm", "start"] 
