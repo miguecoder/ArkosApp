@@ -3,6 +3,7 @@
 
 -- Eliminar tablas en orden correcto (por las foreign keys)
 DROP TABLE IF EXISTS detalle_venta;
+DROP TABLE IF EXISTS detalles_venta;
 DROP TABLE IF EXISTS precios_combinaciones;
 DROP TABLE IF EXISTS combinacion_imagenes;
 DROP TABLE IF EXISTS combinacion_estampados;
