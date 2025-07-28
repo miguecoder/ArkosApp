@@ -34,10 +34,18 @@ app.use('/api/', limiter);
 // Configuración de CORS
 const corsOptions = {
     origin: NODE_ENV === 'production' 
-        ? [process.env.FRONTEND_URL] 
+        ? [
+            process.env.FRONTEND_URL,
+            'https://arkos-app-frontend.vercel.app',
+            'https://arkos-app-frontend.vercel.app/',
+            'https://arkosapp-production.up.railway.app',
+            '*' // Permitir todos los orígenes en producción (temporal)
+          ] 
         : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5000'],
     credentials: true,
-    optionsSuccessStatus: 200
+    optionsSuccessStatus: 200,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 app.use(cors(corsOptions));
 
