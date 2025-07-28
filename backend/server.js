@@ -75,24 +75,6 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Ruta temporal para inicializar base de datos
-app.get('/init-db', async (req, res) => {
-    try {
-        const initializeDatabase = require('./init-db');
-        await initializeDatabase();
-        res.json({ 
-            message: 'Base de datos inicializada correctamente',
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error('Error inicializando BD:', error);
-        res.status(500).json({ 
-            error: 'Error inicializando base de datos',
-            details: error.message
-        });
-    }
-});
-
 // Manejo de errores 404
 app.use('*', (req, res) => {
     res.status(404).json({ 

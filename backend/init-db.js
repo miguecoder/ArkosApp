@@ -50,12 +50,22 @@ async function initializeDatabase() {
     }
 
     console.log('✅ Base de datos inicializada correctamente');
-    await pool.end();
+    
+    // Solo cerrar el pool si se ejecuta directamente (no desde el servidor)
+    if (require.main === module) {
+      await pool.end();
+    }
 
   } catch (error) {
     console.error('❌ Error inicializando base de datos:', error);
-    await pool.end();
-    process.exit(1);
+    
+    // Solo cerrar el pool si se ejecuta directamente
+    if (require.main === module) {
+      await pool.end();
+      process.exit(1);
+    } else {
+      throw error; // Re-lanzar el error para que el servidor lo maneje
+    }
   }
 }
 
