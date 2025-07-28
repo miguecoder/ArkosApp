@@ -1,5 +1,6 @@
 -- Esquema completo de la base de datos para Camisetas App
 -- Ejecutar este archivo para crear todas las tablas necesarias
+-- Versión: 1.0 - Incluye todas las modificaciones del desarrollo
 
 -- Tabla de colores
 CREATE TABLE IF NOT EXISTS colores (
