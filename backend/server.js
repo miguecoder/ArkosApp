@@ -10,6 +10,9 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
+// Configurar trust proxy para Railway
+app.set('trust proxy', 1);
+
 // Configuración de seguridad
 app.use(helmet({
     contentSecurityPolicy: false, // Deshabilitado para desarrollo
@@ -70,6 +73,24 @@ app.get('/health', (req, res) => {
         environment: NODE_ENV,
         timestamp: new Date().toISOString()
     });
+});
+
+// Ruta temporal para inicializar base de datos
+app.get('/init-db', async (req, res) => {
+    try {
+        const initializeDatabase = require('./init-db');
+        await initializeDatabase();
+        res.json({ 
+            message: 'Base de datos inicializada correctamente',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error inicializando BD:', error);
+        res.status(500).json({ 
+            error: 'Error inicializando base de datos',
+            details: error.message
+        });
+    }
 });
 
 // Manejo de errores 404
