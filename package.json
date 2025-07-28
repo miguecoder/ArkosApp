@@ -2,25 +2,9 @@
   "name": "camisetas-app",
   "version": "1.0.0",
   "description": "Aplicación de gestión de camisetas",
-  "main": "backend/server.js",
-  "scripts": {
-    "start": "cd backend && npm start",
-    "build": "cd backend && npm install",
-    "dev": "cd backend && npm run dev"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  },
+  "private": true,
   "workspaces": [
     "backend",
     "frontend"
-  ],
-  "keywords": [
-    "camisetas",
-    "nodejs",
-    "react",
-    "mysql"
-  ],
-  "author": "",
-  "license": "ISC"
+  ]
 } 
