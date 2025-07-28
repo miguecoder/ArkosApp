@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { Plus, Edit, Trash2, ShoppingCart, Eye } from 'lucide-react';
+import { Plus, Edit, Trash2, ShoppingCart, Eye, X } from 'lucide-react';
 import { ventasAPI, combinacionesAPI, preciosCombinacionesAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -27,6 +27,9 @@ const Ventas = () => {
   
   const { register, handleSubmit, reset, control, watch, setValue, formState: { errors } } = useForm({
     defaultValues: {
+      fecha_venta: new Date().toISOString().split('T')[0],
+      estado_venta: 'pagado',
+      fecha_pago: new Date().toISOString().split('T')[0],
       detalles: [{ combinacion_id: '', talla: 'M', cantidad: 1, precio_unitario: 0, subtotal: 0 }]
     }
   });
@@ -39,6 +42,16 @@ const Ventas = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Efecto para establecer valores por defecto cuando se abre el modal
+  useEffect(() => {
+    if (showModal && !editingVenta) {
+      const today = new Date().toISOString().split('T')[0];
+      setValue('fecha_venta', today);
+      setValue('estado_venta', 'pagado');
+      setValue('fecha_pago', today);
+    }
+  }, [showModal, editingVenta, setValue]);
 
   const loadData = async () => {
     try {
@@ -187,7 +200,11 @@ const Ventas = () => {
 
   const openModal = () => {
     setEditingVenta(null);
+    const today = new Date().toISOString().split('T')[0];
     reset({
+      fecha_venta: today,
+      estado_venta: 'pagado',
+      fecha_pago: today,
       detalles: [{ combinacion_id: '', talla: 'M', cantidad: 1, precio_unitario: 0, subtotal: 0 }]
     });
     setShowModal(true);
@@ -506,10 +523,18 @@ const Ventas = () => {
       {/* Modal de venta */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-4 md:p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">
-              {editingVenta ? 'Editar Venta' : 'Nueva Venta'}
-            </h2>
+          <div className="bg-white rounded-lg p-4 md:p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto relative">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900">
+                {editingVenta ? 'Editar Venta' : 'Nueva Venta'}
+              </h2>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
             
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
               <div className="grid grid-cols-1 gap-4">
@@ -913,8 +938,16 @@ const Ventas = () => {
       {/* Modal de detalles */}
       {showDetailModal && selectedVenta && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-4 md:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">Detalles de la Venta</h2>
+          <div className="bg-white rounded-lg p-4 md:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900">Detalles de la Venta</h2>
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
             
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

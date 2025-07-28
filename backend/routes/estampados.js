@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
-const upload = require('../middleware/upload');
+const { upload, handleUploadError } = require('../middleware/upload');
 
 // Obtener todos los estampados
 router.get('/', async (req, res) => {
@@ -29,7 +29,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Crear un nuevo estampado
-router.post('/', upload.single('imagen'), async (req, res) => {
+router.post('/', upload.single('imagen'), handleUploadError, async (req, res) => {
     try {
         console.log('Creando nuevo estampado...');
         console.log('Body:', req.body);
@@ -60,7 +60,7 @@ router.post('/', upload.single('imagen'), async (req, res) => {
 });
 
 // Actualizar un estampado
-router.put('/:id', upload.single('imagen'), async (req, res) => {
+router.put('/:id', upload.single('imagen'), handleUploadError, async (req, res) => {
     try {
         console.log('Actualizando estampado ID:', req.params.id);
         console.log('Body:', req.body);

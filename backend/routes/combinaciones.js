@@ -28,8 +28,32 @@ const upload = multer({
         } else {
             cb(new Error('Solo se permiten archivos de imagen'), false);
         }
+    },
+    limits: {
+        fileSize: 60 * 1024 * 1024 // 60MB
     }
 });
+
+// Middleware para manejar errores de multer
+const handleUploadError = (error, req, res, next) => {
+    if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ 
+                error: 'El archivo es demasiado grande. Máximo 60MB.' 
+            });
+        }
+        return res.status(400).json({ 
+            error: 'Error al subir el archivo',
+            details: error.message 
+        });
+    } else if (error) {
+        return res.status(400).json({ 
+            error: 'Error en el archivo',
+            details: error.message 
+        });
+    }
+    next();
+};
 
 // Obtener todas las combinaciones con sus relaciones
 router.get('/', async (req, res) => {
@@ -195,7 +219,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Crear una nueva combinación
-router.post('/', upload.array('imagenes', 10), async (req, res) => {
+router.post('/', upload.array('imagenes', 10), handleUploadError, async (req, res) => {
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
@@ -281,7 +305,7 @@ router.post('/', upload.array('imagenes', 10), async (req, res) => {
 });
 
 // Actualizar una combinación
-router.put('/:id', upload.array('imagenes', 10), async (req, res) => {
+router.put('/:id', upload.array('imagenes', 10), handleUploadError, async (req, res) => {
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
