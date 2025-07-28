@@ -1,6 +1,6 @@
 -- Esquema completo de la base de datos para Camisetas App
 -- Ejecutar este archivo para crear todas las tablas necesarias
--- Versión: 1.0 - Incluye todas las modificaciones del desarrollo
+-- Versión: 2.0 - Esquema completo con tablas intermedias
 
 -- Tabla de colores
 CREATE TABLE IF NOT EXISTS colores (
@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS proveedores (
     telefono VARCHAR(20),
     email VARCHAR(100),
     direccion TEXT,
+    ruc VARCHAR(20),
     activo BOOLEAN DEFAULT TRUE,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -47,22 +48,69 @@ CREATE TABLE IF NOT EXISTS codigos_estampado (
     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- Tabla de combinaciones
+-- Tabla de combinaciones (sin FK directas)
 CREATE TABLE IF NOT EXISTS combinaciones (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(200) NOT NULL,
     descripcion TEXT,
-    color_id INT,
-    tipo_tela_id INT,
-    proveedor_id INT,
-    estampado_id INT,
+    activo BOOLEAN DEFAULT TRUE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Tabla intermedia para combinaciones y colores
+CREATE TABLE IF NOT EXISTS combinacion_colores (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    combinacion_id INT NOT NULL,
+    color_id INT NOT NULL,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (combinacion_id) REFERENCES combinaciones(id) ON DELETE CASCADE,
+    FOREIGN KEY (color_id) REFERENCES colores(id) ON DELETE CASCADE
+);
+
+-- Tabla intermedia para combinaciones y telas
+CREATE TABLE IF NOT EXISTS combinacion_telas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    combinacion_id INT NOT NULL,
+    tipo_tela_id INT NOT NULL,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (combinacion_id) REFERENCES combinaciones(id) ON DELETE CASCADE,
+    FOREIGN KEY (tipo_tela_id) REFERENCES tipos_tela(id) ON DELETE CASCADE
+);
+
+-- Tabla intermedia para combinaciones y proveedores
+CREATE TABLE IF NOT EXISTS combinacion_proveedores (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    combinacion_id INT NOT NULL,
+    proveedor_id INT NOT NULL,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (combinacion_id) REFERENCES combinaciones(id) ON DELETE CASCADE,
+    FOREIGN KEY (proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
+);
+
+-- Tabla intermedia para combinaciones y estampados
+CREATE TABLE IF NOT EXISTS combinacion_estampados (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    combinacion_id INT NOT NULL,
+    estampado_id INT NOT NULL,
+    medida VARCHAR(50),
+    ubicacion VARCHAR(100),
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (combinacion_id) REFERENCES combinaciones(id) ON DELETE CASCADE,
+    FOREIGN KEY (estampado_id) REFERENCES codigos_estampado(id) ON DELETE CASCADE
+);
+
+-- Tabla de precios para combinaciones
+CREATE TABLE IF NOT EXISTS precios_combinaciones (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    combinacion_id INT NOT NULL,
+    precio DECIMAL(10,2) NOT NULL,
+    fecha_inicio DATE NOT NULL,
+    fecha_fin DATE,
     activo BOOLEAN DEFAULT TRUE,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (color_id) REFERENCES colores(id),
-    FOREIGN KEY (tipo_tela_id) REFERENCES tipos_tela(id),
-    FOREIGN KEY (proveedor_id) REFERENCES proveedores(id),
-    FOREIGN KEY (estampado_id) REFERENCES codigos_estampado(id)
+    FOREIGN KEY (combinacion_id) REFERENCES combinaciones(id) ON DELETE CASCADE
 );
 
 -- Tabla de imágenes de combinaciones
@@ -121,10 +169,16 @@ INSERT IGNORE INTO proveedores (nombre, contacto, telefono, email) VALUES
 ('Proveedor B', 'María García', '098-765-4321', 'maria@proveedor.com');
 
 -- Crear índices para mejorar rendimiento
-CREATE INDEX idx_combinaciones_color ON combinaciones(color_id);
-CREATE INDEX idx_combinaciones_tela ON combinaciones(tipo_tela_id);
-CREATE INDEX idx_combinaciones_proveedor ON combinaciones(proveedor_id);
-CREATE INDEX idx_combinaciones_estampado ON combinaciones(estampado_id);
+CREATE INDEX idx_combinacion_colores_combinacion ON combinacion_colores(combinacion_id);
+CREATE INDEX idx_combinacion_colores_color ON combinacion_colores(color_id);
+CREATE INDEX idx_combinacion_telas_combinacion ON combinacion_telas(combinacion_id);
+CREATE INDEX idx_combinacion_telas_tela ON combinacion_telas(tipo_tela_id);
+CREATE INDEX idx_combinacion_proveedores_combinacion ON combinacion_proveedores(combinacion_id);
+CREATE INDEX idx_combinacion_proveedores_proveedor ON combinacion_proveedores(proveedor_id);
+CREATE INDEX idx_combinacion_estampados_combinacion ON combinacion_estampados(combinacion_id);
+CREATE INDEX idx_combinacion_estampados_estampado ON combinacion_estampados(estampado_id);
+CREATE INDEX idx_precios_combinaciones_combinacion ON precios_combinaciones(combinacion_id);
+CREATE INDEX idx_precios_combinaciones_activo ON precios_combinaciones(activo);
 CREATE INDEX idx_combinacion_imagenes_combinacion ON combinacion_imagenes(combinacion_id);
 CREATE INDEX idx_combinacion_imagenes_predeterminada ON combinacion_imagenes(es_predeterminada);
 CREATE INDEX idx_ventas_fecha ON ventas(fecha_venta);
