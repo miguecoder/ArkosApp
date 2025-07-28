@@ -79,8 +79,17 @@ const Ventas = () => {
 
   const onSubmit = async (data) => {
     try {
+      console.log('📝 Datos del formulario:', data);
+      console.log('📝 Detalles:', data.detalles);
+      
       // Filtrar detalles válidos (con combinación seleccionada)
-      const items = data.detalles.filter(detalle => detalle.combinacion_id && detalle.combinacion_id !== '');
+      const items = data.detalles.filter(detalle => {
+        const tieneCombinacion = detalle.combinacion_id && detalle.combinacion_id !== '';
+        console.log('🔍 Detalle:', detalle, 'Tiene combinación:', tieneCombinacion);
+        return tieneCombinacion;
+      });
+      
+      console.log('📝 Items válidos:', items);
       
       if (items.length === 0) {
         toast.error('Debe seleccionar al menos una combinación');
@@ -213,8 +222,16 @@ const Ventas = () => {
   };
 
   const getPrecioCombinacion = (combinacionId) => {
+    if (!combinacionId || combinacionId === '') return 0;
+    
     const combinacion = combinacionesConPrecios.find(c => c.id === parseInt(combinacionId));
-    return combinacion?.precio?.precio_venta ? parseFloat(combinacion.precio.precio_venta) : 0;
+    console.log('🔍 Buscando precio para combinación:', combinacionId);
+    console.log('🔍 Combinación encontrada:', combinacion);
+    console.log('🔍 Precio encontrado:', combinacion?.precio);
+    
+    const precio = combinacion?.precio?.precio_venta ? parseFloat(combinacion.precio.precio_venta) : 0;
+    console.log('🔍 Precio final:', precio);
+    return precio;
   };
 
   const handleEstadoChange = (e) => {
@@ -631,9 +648,18 @@ const Ventas = () => {
                             <select
                               {...register(`detalles.${index}.combinacion_id`)}
                               onChange={(e) => {
+                                console.log('🔄 Cambio de combinación:', e.target.value);
+                                // Actualizar el valor del formulario
+                                setValue(`detalles.${index}.combinacion_id`, e.target.value);
                                 const precio = getPrecioCombinacion(e.target.value);
+                                console.log('🔄 Precio obtenido:', precio);
                                 setValue(`detalles.${index}.precio_unitario`, precio);
                                 updateDetalle(index, 'precio_unitario', precio);
+                                // Forzar actualización del formulario
+                                setTimeout(() => {
+                                  const currentValue = watch(`detalles.${index}.combinacion_id`);
+                                  console.log('🔄 Valor actual después del cambio:', currentValue);
+                                }, 100);
                               }}
                               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
@@ -751,6 +777,8 @@ const Ventas = () => {
                           <select
                             {...register(`detalles.${index}.combinacion_id`)}
                             onChange={(e) => {
+                              // Actualizar el valor del formulario
+                              setValue(`detalles.${index}.combinacion_id`, e.target.value);
                               const precio = getPrecioCombinacion(e.target.value);
                               setValue(`detalles.${index}.precio_unitario`, precio);
                               updateDetalle(index, 'precio_unitario', precio);
