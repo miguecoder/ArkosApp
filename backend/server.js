@@ -93,6 +93,111 @@ app.get('/init-db', async (req, res) => {
     }
 });
 
+// Ruta temporal para crear las tablas faltantes
+app.get('/fix-missing-tables', async (req, res) => {
+    try {
+        const pool = require('./config/database');
+        
+        console.log('🔧 Creando tablas faltantes...');
+        
+        // Crear tabla colores
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS colores (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                nombre VARCHAR(100) NOT NULL,
+                codigo_hex VARCHAR(7),
+                activo BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+        `);
+        console.log('✅ Tabla colores creada');
+        
+        // Crear tabla combinacion_colores
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS combinacion_colores (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                combinacion_id INT,
+                color_id INT,
+                KEY combinacion_id (combinacion_id),
+                KEY color_id (color_id),
+                CONSTRAINT combinacion_colores_ibfk_1 FOREIGN KEY (combinacion_id) REFERENCES combinaciones (id),
+                CONSTRAINT combinacion_colores_ibfk_2 FOREIGN KEY (color_id) REFERENCES colores (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+        `);
+        console.log('✅ Tabla combinacion_colores creada');
+        
+        // Insertar datos de ejemplo en colores
+        await pool.query(`
+            INSERT IGNORE INTO colores (nombre, codigo_hex) VALUES 
+            ('Blanco', '#FFFFFF'),
+            ('Negro', '#000000'),
+            ('Azul', '#0000FF'),
+            ('Rojo', '#FF0000'),
+            ('Verde', '#00FF00')
+        `);
+        console.log('✅ Datos de ejemplo insertados en colores');
+        
+        console.log('✅ Todas las tablas faltantes creadas');
+        
+        res.json({ 
+            message: 'Tablas faltantes creadas correctamente',
+            tablas_creadas: ['colores', 'combinacion_colores'],
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error creando tablas faltantes:', error);
+        res.status(500).json({ 
+            error: 'Error creando tablas faltantes',
+            details: error.message
+        });
+    }
+});
+
+// Ruta temporal para crear solo la tabla colores
+app.get('/fix-colores', async (req, res) => {
+    try {
+        const pool = require('./config/database');
+        
+        console.log('🔧 Creando tabla colores...');
+        
+        // Crear tabla colores
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS colores (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                nombre VARCHAR(100) NOT NULL,
+                codigo_hex VARCHAR(7),
+                activo BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+        `);
+        
+        // Insertar datos de ejemplo
+        await pool.query(`
+            INSERT IGNORE INTO colores (nombre, codigo_hex) VALUES 
+            ('Blanco', '#FFFFFF'),
+            ('Negro', '#000000'),
+            ('Azul', '#0000FF'),
+            ('Rojo', '#FF0000'),
+            ('Verde', '#00FF00')
+        `);
+        
+        console.log('✅ Tabla colores creada y datos insertados');
+        
+        res.json({ 
+            message: 'Tabla colores creada correctamente',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error creando tabla colores:', error);
+        res.status(500).json({ 
+            error: 'Error creando tabla colores',
+            details: error.message
+        });
+    }
+});
+
 // Ruta temporal para resetear completamente la base de datos
 app.get('/reset-db', async (req, res) => {
     try {
