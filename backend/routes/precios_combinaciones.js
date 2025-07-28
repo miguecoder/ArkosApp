@@ -101,7 +101,7 @@ router.get('/combinacion/:combinacionId', async (req, res) => {
             SELECT pc.*, c.nombre as combinacion_nombre
             FROM precios_combinaciones pc
             JOIN combinaciones c ON pc.combinacion_id = c.id
-            WHERE pc.combinacion_id = ? AND pc.activo = TRUE
+            WHERE pc.combinacion_id = ? AND pc.activo = TRUE AND c.activo = TRUE
         `, [req.params.combinacionId]);
         
         if (rows.length === 0) {

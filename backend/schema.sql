@@ -1,13 +1,12 @@
 -- Esquema completo de la base de datos para Camisetas App
 -- Ejecutar este archivo para crear todas las tablas necesarias
--- Versión: 2.0 - Esquema completo con tablas intermedias
+-- Versión: 3.0 - Esquema completo con todas las funcionalidades
 
 -- Tabla de colores
 CREATE TABLE IF NOT EXISTS colores (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
-    codigo_hex VARCHAR(7) NOT NULL,
-    descripcion TEXT,
+    codigo_hex VARCHAR(7),
     activo BOOLEAN DEFAULT TRUE,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -17,10 +16,9 @@ CREATE TABLE IF NOT EXISTS colores (
 CREATE TABLE IF NOT EXISTS proveedores (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(200) NOT NULL,
-    contacto VARCHAR(200),
+    direccion TEXT,
     telefono VARCHAR(20),
     email VARCHAR(100),
-    direccion TEXT,
     ruc VARCHAR(20),
     activo BOOLEAN DEFAULT TRUE,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -41,14 +39,14 @@ CREATE TABLE IF NOT EXISTS tipos_tela (
 CREATE TABLE IF NOT EXISTS codigos_estampado (
     id INT AUTO_INCREMENT PRIMARY KEY,
     codigo VARCHAR(50) NOT NULL UNIQUE,
-    descripcion VARCHAR(200),
+    descripcion TEXT,
     imagen_url VARCHAR(500),
     activo BOOLEAN DEFAULT TRUE,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- Tabla de combinaciones (sin FK directas)
+-- Tabla de combinaciones
 CREATE TABLE IF NOT EXISTS combinaciones (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(200) NOT NULL,
@@ -61,56 +59,53 @@ CREATE TABLE IF NOT EXISTS combinaciones (
 -- Tabla intermedia para combinaciones y colores
 CREATE TABLE IF NOT EXISTS combinacion_colores (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    combinacion_id INT NOT NULL,
-    color_id INT NOT NULL,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (combinacion_id) REFERENCES combinaciones(id) ON DELETE CASCADE,
-    FOREIGN KEY (color_id) REFERENCES colores(id) ON DELETE CASCADE
+    combinacion_id INT,
+    color_id INT,
+    FOREIGN KEY (combinacion_id) REFERENCES combinaciones(id),
+    FOREIGN KEY (color_id) REFERENCES colores(id)
 );
 
 -- Tabla intermedia para combinaciones y telas
 CREATE TABLE IF NOT EXISTS combinacion_telas (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    combinacion_id INT NOT NULL,
-    tipo_tela_id INT NOT NULL,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (combinacion_id) REFERENCES combinaciones(id) ON DELETE CASCADE,
-    FOREIGN KEY (tipo_tela_id) REFERENCES tipos_tela(id) ON DELETE CASCADE
+    combinacion_id INT,
+    tipo_tela_id INT,
+    FOREIGN KEY (combinacion_id) REFERENCES combinaciones(id),
+    FOREIGN KEY (tipo_tela_id) REFERENCES tipos_tela(id)
 );
 
 -- Tabla intermedia para combinaciones y proveedores
 CREATE TABLE IF NOT EXISTS combinacion_proveedores (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    combinacion_id INT NOT NULL,
-    proveedor_id INT NOT NULL,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (combinacion_id) REFERENCES combinaciones(id) ON DELETE CASCADE,
-    FOREIGN KEY (proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
+    combinacion_id INT,
+    proveedor_id INT,
+    FOREIGN KEY (combinacion_id) REFERENCES combinaciones(id),
+    FOREIGN KEY (proveedor_id) REFERENCES proveedores(id)
 );
 
 -- Tabla intermedia para combinaciones y estampados
 CREATE TABLE IF NOT EXISTS combinacion_estampados (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    combinacion_id INT NOT NULL,
-    estampado_id INT NOT NULL,
+    combinacion_id INT,
+    estampado_id INT,
     medida VARCHAR(50),
     ubicacion VARCHAR(100),
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (combinacion_id) REFERENCES combinaciones(id) ON DELETE CASCADE,
-    FOREIGN KEY (estampado_id) REFERENCES codigos_estampado(id) ON DELETE CASCADE
+    FOREIGN KEY (combinacion_id) REFERENCES combinaciones(id),
+    FOREIGN KEY (estampado_id) REFERENCES codigos_estampado(id)
 );
 
 -- Tabla de precios para combinaciones
 CREATE TABLE IF NOT EXISTS precios_combinaciones (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    combinacion_id INT NOT NULL,
-    precio DECIMAL(10,2) NOT NULL,
-    fecha_inicio DATE NOT NULL,
-    fecha_fin DATE,
+    combinacion_id INT,
+    costo DECIMAL(10,2) DEFAULT 0.00,
+    precio_venta DECIMAL(10,2) DEFAULT 0.00,
+    margen_ganancia DECIMAL(10,2) GENERATED ALWAYS AS (precio_venta - costo) STORED,
+    porcentaje_ganancia DECIMAL(5,2) GENERATED ALWAYS AS (CASE WHEN costo > 0 THEN ((precio_venta - costo) / costo) * 100 ELSE 0 END) STORED,
     activo BOOLEAN DEFAULT TRUE,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (combinacion_id) REFERENCES combinaciones(id) ON DELETE CASCADE
+    FOREIGN KEY (combinacion_id) REFERENCES combinaciones(id)
 );
 
 -- Tabla de imágenes de combinaciones
@@ -128,45 +123,53 @@ CREATE TABLE IF NOT EXISTS combinacion_imagenes (
 CREATE TABLE IF NOT EXISTS ventas (
     id INT AUTO_INCREMENT PRIMARY KEY,
     fecha_venta DATE NOT NULL,
-    cliente_nombre VARCHAR(200),
-    cliente_telefono VARCHAR(20),
-    cliente_email VARCHAR(100),
+    cliente VARCHAR(200),
+    metodo_pago ENUM('efectivo', 'tarjeta', 'transferencia', 'yape', 'plin') DEFAULT 'efectivo',
+    estado_venta ENUM('pendiente', 'pagado', 'cancelado') NOT NULL DEFAULT 'pagado',
+    fecha_pago DATE NULL,
     total DECIMAL(10,2) DEFAULT 0.00,
-    estado ENUM('pendiente', 'completada', 'cancelada') DEFAULT 'pendiente',
-    notas TEXT,
+    costo_total DECIMAL(10,2) DEFAULT 0.00,
+    ganancia_total DECIMAL(10,2) DEFAULT 0.00,
+    observaciones TEXT,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- Tabla de detalles de venta
-CREATE TABLE IF NOT EXISTS detalles_venta (
+-- Tabla de detalle de ventas
+CREATE TABLE IF NOT EXISTS detalle_venta (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    venta_id INT NOT NULL,
-    combinacion_id INT NOT NULL,
-    cantidad INT NOT NULL DEFAULT 1,
-    precio_unitario DECIMAL(10,2) NOT NULL,
-    subtotal DECIMAL(10,2) NOT NULL,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (venta_id) REFERENCES ventas(id) ON DELETE CASCADE,
+    venta_id INT,
+    combinacion_id INT,
+    talla ENUM('XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL') NOT NULL DEFAULT 'M',
+    cantidad INT DEFAULT 1,
+    precio_unitario DECIMAL(10,2),
+    subtotal DECIMAL(10,2),
+    FOREIGN KEY (venta_id) REFERENCES ventas(id),
     FOREIGN KEY (combinacion_id) REFERENCES combinaciones(id)
 );
 
--- Insertar datos de ejemplo (opcional)
-INSERT IGNORE INTO colores (nombre, codigo_hex, descripcion) VALUES
-('Blanco', '#FFFFFF', 'Color blanco puro'),
-('Negro', '#000000', 'Color negro puro'),
-('Azul', '#0000FF', 'Color azul'),
-('Rojo', '#FF0000', 'Color rojo'),
-('Verde', '#00FF00', 'Color verde');
+-- Insertar datos de ejemplo
+INSERT IGNORE INTO colores (nombre, codigo_hex) VALUES 
+('Blanco', '#FFFFFF'),
+('Negro', '#000000'),
+('Azul', '#0000FF'),
+('Rojo', '#FF0000'),
+('Verde', '#00FF00');
 
-INSERT IGNORE INTO tipos_tela (nombre, descripcion) VALUES
-('Algodón', 'Tela de algodón 100%'),
-('Poliéster', 'Tela de poliéster'),
-('Mezcla', 'Mezcla de algodón y poliéster');
+INSERT IGNORE INTO tipos_tela (nombre, descripcion) VALUES 
+('Algodón 100%', 'Tela de algodón puro'),
+('Algodón-Polyester', 'Mezcla de algodón y polyester'),
+('Jersey', 'Tela jersey suave'),
+('Pique', 'Tela pique para polos');
 
-INSERT IGNORE INTO proveedores (nombre, contacto, telefono, email) VALUES
-('Proveedor A', 'Juan Pérez', '123-456-7890', 'juan@proveedor.com'),
-('Proveedor B', 'María García', '098-765-4321', 'maria@proveedor.com');
+INSERT IGNORE INTO proveedores (nombre, direccion, telefono, email) VALUES 
+('Proveedor A', 'Av. Principal 123, Lima', '999888777', 'proveedorA@email.com'),
+('Proveedor B', 'Jr. Comercial 456, Lima', '999777666', 'proveedorB@email.com');
+
+INSERT IGNORE INTO codigos_estampado (codigo, descripcion) VALUES 
+('EST001', 'Logo de la empresa'),
+('EST002', 'Diseño personalizado'),
+('EST003', 'Texto simple');
 
 -- Crear índices para mejorar rendimiento
 CREATE INDEX idx_combinacion_colores_combinacion ON combinacion_colores(combinacion_id);
@@ -182,5 +185,6 @@ CREATE INDEX idx_precios_combinaciones_activo ON precios_combinaciones(activo);
 CREATE INDEX idx_combinacion_imagenes_combinacion ON combinacion_imagenes(combinacion_id);
 CREATE INDEX idx_combinacion_imagenes_predeterminada ON combinacion_imagenes(es_predeterminada);
 CREATE INDEX idx_ventas_fecha ON ventas(fecha_venta);
-CREATE INDEX idx_detalles_venta_venta ON detalles_venta(venta_id);
-CREATE INDEX idx_detalles_venta_combinacion ON detalles_venta(combinacion_id); 
+CREATE INDEX idx_ventas_estado ON ventas(estado_venta);
+CREATE INDEX idx_detalle_venta_venta ON detalle_venta(venta_id);
+CREATE INDEX idx_detalle_venta_combinacion ON detalle_venta(combinacion_id); 
