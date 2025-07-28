@@ -93,6 +93,44 @@ app.get('/init-db', async (req, res) => {
     }
 });
 
+// Ruta temporal para arreglar tabla ventas
+app.get('/fix-ventas', async (req, res) => {
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const pool = require('./config/database');
+        
+        // Leer y ejecutar el script de migración
+        const scriptPath = path.join(__dirname, 'fix-ventas-table.sql');
+        if (fs.existsSync(scriptPath)) {
+            const scriptContent = fs.readFileSync(scriptPath, 'utf8');
+            const queries = scriptContent.split(';').filter(query => query.trim());
+            
+            for (const query of queries) {
+                if (query.trim() && !query.trim().startsWith('--')) {
+                    try {
+                        await pool.query(query);
+                        console.log('Query ejecutada:', query.trim().substring(0, 50) + '...');
+                    } catch (error) {
+                        console.error(`Error ejecutando query: ${error.message}`);
+                    }
+                }
+            }
+        }
+        
+        res.json({ 
+            message: 'Tabla ventas corregida correctamente',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error corrigiendo tabla ventas:', error);
+        res.status(500).json({ 
+            error: 'Error corrigiendo tabla ventas',
+            details: error.message
+        });
+    }
+});
+
 // Manejo de errores 404
 app.use('*', (req, res) => {
     res.status(404).json({ 
