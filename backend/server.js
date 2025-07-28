@@ -102,11 +102,55 @@ app.get('/reset-db', async (req, res) => {
         
         console.log('🔄 Iniciando reset completo de la base de datos...');
         
-        // Leer y ejecutar el script de reset
+        // Deshabilitar foreign key checks
+        await pool.query('SET FOREIGN_KEY_CHECKS = 0');
+        console.log('✅ Foreign key checks deshabilitados');
+        
+        // Eliminar todas las tablas
+        const tablesToDrop = [
+            'detalle_venta',
+            'detalles_venta', 
+            'precios_combinaciones',
+            'combinacion_imagenes',
+            'combinacion_estampados',
+            'combinacion_proveedores',
+            'combinacion_telas',
+            'combinacion_colores',
+            'ventas',
+            'combinaciones',
+            'codigos_estampado',
+            'tipos_tela',
+            'proveedores',
+            'colores'
+        ];
+        
+        for (const table of tablesToDrop) {
+            try {
+                await pool.query(`DROP TABLE IF EXISTS ${table}`);
+                console.log(`✅ Tabla ${table} eliminada`);
+            } catch (error) {
+                console.log(`⚠️ Error eliminando ${table}: ${error.message}`);
+            }
+        }
+        
+        // Habilitar foreign key checks
+        await pool.query('SET FOREIGN_KEY_CHECKS = 1');
+        console.log('✅ Foreign key checks habilitados');
+        
+        // Leer y ejecutar el script de creación
         const scriptPath = path.join(__dirname, 'reset-db.sql');
         if (fs.existsSync(scriptPath)) {
             const scriptContent = fs.readFileSync(scriptPath, 'utf8');
-            const queries = scriptContent.split(';').filter(query => query.trim());
+            
+            // Remover las líneas de SET FOREIGN_KEY_CHECKS del script
+            const cleanScript = scriptContent
+                .replace(/SET FOREIGN_KEY_CHECKS = 0;?\s*/g, '')
+                .replace(/SET FOREIGN_KEY_CHECKS = 1;?\s*/g, '')
+                .replace(/-- Deshabilitar verificación de foreign keys temporalmente\s*/g, '')
+                .replace(/-- Eliminar TODAS las tablas sin importar las foreign keys\s*/g, '')
+                .replace(/-- Habilitar verificación de foreign keys\s*/g, '');
+            
+            const queries = cleanScript.split(';').filter(query => query.trim());
             
             for (const query of queries) {
                 if (query.trim() && !query.trim().startsWith('--')) {
