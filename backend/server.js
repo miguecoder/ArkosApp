@@ -93,6 +93,48 @@ app.get('/init-db', async (req, res) => {
     }
 });
 
+// Ruta temporal para resetear completamente la base de datos
+app.get('/reset-db', async (req, res) => {
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const pool = require('./config/database');
+        
+        console.log('🔄 Iniciando reset completo de la base de datos...');
+        
+        // Leer y ejecutar el script de reset
+        const scriptPath = path.join(__dirname, 'reset-db.sql');
+        if (fs.existsSync(scriptPath)) {
+            const scriptContent = fs.readFileSync(scriptPath, 'utf8');
+            const queries = scriptContent.split(';').filter(query => query.trim());
+            
+            for (const query of queries) {
+                if (query.trim() && !query.trim().startsWith('--')) {
+                    try {
+                        await pool.query(query);
+                        console.log('✅ Query ejecutada:', query.trim().substring(0, 50) + '...');
+                    } catch (error) {
+                        console.error(`❌ Error ejecutando query: ${error.message}`);
+                    }
+                }
+            }
+        }
+        
+        console.log('✅ Reset de base de datos completado');
+        
+        res.json({ 
+            message: 'Base de datos reseteada completamente con estructura correcta',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error reseteando BD:', error);
+        res.status(500).json({ 
+            error: 'Error reseteando base de datos',
+            details: error.message
+        });
+    }
+});
+
 // Manejo de errores 404
 app.use('*', (req, res) => {
     res.status(404).json({ 
