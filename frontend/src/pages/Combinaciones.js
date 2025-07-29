@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Plus, Edit, Trash2, Package, DollarSign, X } from 'lucide-react';
-import { combinacionesAPI, coloresAPI, telasAPI, proveedoresAPI, estampadosAPI, preciosCombinacionesAPI } from '../services/api';
+import { combinacionesAPI, coloresAPI, telasAPI, proveedoresAPI, estampadosAPI, preciosCombinacionesAPI, dashboardAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 // Función para obtener la URL base del API
@@ -37,16 +37,37 @@ const Combinaciones = () => {
   const [estampadosSeleccionados, setEstampadosSeleccionados] = useState([]);
   const [imagenesCombinacion, setImagenesCombinacion] = useState([]);
   const [imagenPredeterminada, setImagenPredeterminada] = useState(null);
+  const [dataLoaded, setDataLoaded] = useState(false); // Nuevo estado para controlar si los datos ya fueron cargados
   
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm();
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!dataLoaded) {
+      loadData();
+    }
+  }, [dataLoaded]);
 
   const loadData = async () => {
     try {
       setLoading(true);
+      
+      // Intentar usar el nuevo endpoint optimizado primero
+      try {
+        const response = await dashboardAPI.getAllData();
+        const data = response.data;
+        
+        setCombinaciones(data.combinaciones || []);
+        setColores(data.colores || []);
+        setTelas(data.telas || []);
+        setProveedores(data.proveedores || []);
+        setEstampados(data.estampados || []);
+        setDataLoaded(true);
+        return;
+      } catch (error) {
+        console.warn('Endpoint optimizado no disponible, usando endpoints individuales:', error.message);
+      }
+      
+      // Fallback a endpoints individuales si el optimizado falla
       const [combinacionesRes, coloresRes, telasRes, proveedoresRes, estampadosRes] = await Promise.all([
         combinacionesAPI.getAll(),
         coloresAPI.getAll(),
@@ -60,12 +81,22 @@ const Combinaciones = () => {
       setTelas(telasRes.data);
       setProveedores(proveedoresRes.data);
       setEstampados(estampadosRes.data);
+      setDataLoaded(true);
     } catch (error) {
       console.error('Error al cargar datos:', error);
-      toast.error('Error al cargar los datos');
+      if (error.response?.status === 429) {
+        toast.error('Demasiadas peticiones. Por favor, espera un momento y recarga la página.');
+      } else {
+        toast.error('Error al cargar los datos');
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const refreshData = async () => {
+    setDataLoaded(false); // Forzar recarga de datos
+    await loadData();
   };
 
   const onSubmit = async (data) => {
@@ -128,10 +159,14 @@ const Combinaciones = () => {
       setEstampadosSeleccionados([]);
       setImagenesCombinacion([]);
       setImagenPredeterminada(null);
-      loadData();
+      refreshData();
     } catch (error) {
       console.error('Error al guardar combinación:', error);
-      toast.error('Error al guardar la combinación');
+      if (error.response?.status === 429) {
+        toast.error('Demasiadas peticiones. Por favor, espera un momento.');
+      } else {
+        toast.error('Error al guardar la combinación');
+      }
     }
   };
 
@@ -173,7 +208,7 @@ const Combinaciones = () => {
       try {
         await combinacionesAPI.delete(id);
         toast.success('Combinación eliminada correctamente');
-        loadData();
+        refreshData();
       } catch (error) {
         console.error('Error al eliminar combinación:', error);
         toast.error('Error al eliminar la combinación');
@@ -243,7 +278,7 @@ const Combinaciones = () => {
       }
       setShowPriceForm(false);
       setSelectedCombinacion(null);
-      loadData();
+      refreshData();
     } catch (error) {
       console.error('Error al guardar precio:', error);
       toast.error('Error al guardar el precio');
@@ -286,13 +321,26 @@ const Combinaciones = () => {
           <Package className="w-6 h-6 md:w-8 md:h-8 text-blue-600 mr-2 md:mr-3" />
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Combinaciones</h1>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Nueva Combinación
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={refreshData}
+            className="w-full sm:w-auto bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 flex items-center justify-center"
+            disabled={loading}
+          >
+            {loading ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            ) : (
+              '↻ Recargar'
+            )}
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nueva Combinación
+          </button>
+        </div>
       </div>
 
       {showForm && (

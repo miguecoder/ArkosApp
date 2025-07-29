@@ -26,8 +26,12 @@ app.use(compression());
 // Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 100, // máximo 100 requests por ventana
-    message: 'Demasiadas peticiones desde esta IP, intenta de nuevo más tarde.'
+    max: 500, // máximo 500 requests por ventana (aumentado de 100)
+    message: 'Demasiadas peticiones desde esta IP, intenta de nuevo más tarde.',
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    skipSuccessfulRequests: false, // Count successful requests
+    skipFailedRequests: false, // Count failed requests
 });
 app.use('/api/', limiter);
 
@@ -55,6 +59,74 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Servir archivos estáticos
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Ruta para obtener todos los datos necesarios en una sola petición
+app.get('/api/dashboard-data', async (req, res) => {
+    try {
+        const pool = require('./config/database');
+        
+        // Obtener todas las métricas en paralelo
+        const [
+            combinacionesResult,
+            coloresResult,
+            telasResult,
+            proveedoresResult,
+            estampadosResult,
+            dashboardResult
+        ] = await Promise.all([
+            pool.query(`
+                SELECT c.*, 
+                       GROUP_CONCAT(DISTINCT co.nombre) as colores,
+                       GROUP_CONCAT(DISTINCT t.nombre) as telas,
+                       GROUP_CONCAT(DISTINCT p.nombre) as proveedores,
+                       COUNT(DISTINCT ce.id) as estampados_count,
+                       ci.imagen_url as imagen_predeterminada_url
+                FROM combinaciones c
+                LEFT JOIN combinacion_colores cc ON c.id = cc.combinacion_id
+                LEFT JOIN colores co ON cc.color_id = co.id
+                LEFT JOIN combinacion_telas ct ON c.id = ct.combinacion_id
+                LEFT JOIN tipos_tela t ON ct.tela_id = t.id
+                LEFT JOIN combinacion_proveedores cp ON c.id = cp.combinacion_id
+                LEFT JOIN proveedores p ON cp.proveedor_id = p.id
+                LEFT JOIN combinacion_estampados ce ON c.id = ce.combinacion_id
+                LEFT JOIN combinacion_imagenes ci ON c.id = ci.combinacion_id AND ci.es_predeterminada = 1
+                WHERE c.activo = 1
+                GROUP BY c.id
+                ORDER BY c.created_at DESC
+            `),
+            pool.query('SELECT * FROM colores WHERE activo = 1 ORDER BY nombre'),
+            pool.query('SELECT * FROM tipos_tela WHERE activo = 1 ORDER BY nombre'),
+            pool.query('SELECT * FROM proveedores WHERE activo = 1 ORDER BY nombre'),
+            pool.query('SELECT * FROM codigos_estampado WHERE activo = 1 ORDER BY codigo'),
+            pool.query(`
+                SELECT 
+                    COUNT(*) as total_combinaciones,
+                    SUM(COALESCE(pc.precio_venta, 0)) as ingresos_totales,
+                    SUM(COALESCE(pc.costo, 0)) as costos_totales,
+                    SUM(COALESCE(pc.precio_venta - pc.costo, 0)) as ganancias_totales,
+                    AVG(CASE WHEN pc.precio_venta > 0 THEN ((pc.precio_venta - pc.costo) / pc.precio_venta) * 100 ELSE 0 END) as promedio_margen_ganancia
+                FROM combinaciones c
+                LEFT JOIN precios_combinaciones pc ON c.id = pc.combinacion_id
+                WHERE c.activo = 1
+            `)
+        ]);
+
+        res.json({
+            combinaciones: combinacionesResult[0],
+            colores: coloresResult[0],
+            telas: telasResult[0],
+            proveedores: proveedoresResult[0],
+            estampados: estampadosResult[0],
+            dashboard: dashboardResult[0][0]
+        });
+    } catch (error) {
+        console.error('Error obteniendo datos del dashboard:', error);
+        res.status(500).json({ 
+            error: 'Error obteniendo datos del dashboard',
+            details: error.message
+        });
+    }
+});
 
 // Rutas
 app.use('/api/colores', require('./routes/colores'));
