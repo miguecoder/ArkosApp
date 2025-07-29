@@ -4,6 +4,17 @@ import { Plus, Edit, Trash2, Image, Upload } from 'lucide-react';
 import { estampadosAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
+// Función para obtener la URL base del API
+const getApiBaseUrl = () => {
+    return process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+};
+
+// Función para obtener la URL base del servidor (sin /api)
+const getServerBaseUrl = () => {
+    const apiUrl = getApiBaseUrl();
+    return apiUrl.replace('/api', '');
+};
+
 const Estampados = () => {
   const [estampados, setEstampados] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +87,7 @@ const Estampados = () => {
     setValue('codigo', estampado.codigo);
     setValue('descripcion', estampado.descripcion);
     if (estampado.imagen_url) {
-      setImagePreview(`http://localhost:5000${estampado.imagen_url}`);
+      setImagePreview(`${getServerBaseUrl()}${estampado.imagen_url}`);
     }
     setShowForm(true);
   };
@@ -252,7 +263,7 @@ const Estampados = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           {estampado.imagen_url ? (
                             <img
-                              src={`http://localhost:5000${estampado.imagen_url}`}
+                              src={`${getServerBaseUrl()}${estampado.imagen_url}`}
                               alt={estampado.codigo}
                               className="w-16 h-16 object-contain border rounded"
                             />
@@ -298,7 +309,7 @@ const Estampados = () => {
                       <div className="flex items-center space-x-3">
                         {estampado.imagen_url ? (
                           <img
-                            src={`http://localhost:5000${estampado.imagen_url}`}
+                            src={`${getServerBaseUrl()}${estampado.imagen_url}`}
                             alt={estampado.codigo}
                             className="w-12 h-12 object-contain border rounded"
                           />
