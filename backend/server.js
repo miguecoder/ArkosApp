@@ -65,40 +65,44 @@ app.get('/api/dashboard-data', async (req, res) => {
     try {
         const pool = require('./config/database');
         
-        // Obtener todas las métricas en paralelo
-        const [
-            combinacionesResult,
-            coloresResult,
-            telasResult,
-            proveedoresResult,
-            estampadosResult,
-            dashboardResult
-        ] = await Promise.all([
-            pool.query(`
+        // Obtener datos básicos primero
+        const [coloresResult, telasResult, proveedoresResult, estampadosResult] = await Promise.all([
+            pool.query('SELECT * FROM colores WHERE activo = 1 ORDER BY nombre'),
+            pool.query('SELECT * FROM tipos_tela WHERE activo = 1 ORDER BY nombre'),
+            pool.query('SELECT * FROM proveedores WHERE activo = 1 ORDER BY nombre'),
+            pool.query('SELECT * FROM codigos_estampado WHERE activo = 1 ORDER BY codigo')
+        ]);
+
+        // Obtener combinaciones con datos relacionados de forma más segura
+        let combinacionesResult;
+        try {
+            combinacionesResult = await pool.query(`
                 SELECT c.*, 
                        GROUP_CONCAT(DISTINCT co.nombre) as colores,
                        GROUP_CONCAT(DISTINCT t.nombre) as telas,
                        GROUP_CONCAT(DISTINCT p.nombre) as proveedores,
-                       COUNT(DISTINCT ce.id) as estampados_count,
-                       ci.imagen_url as imagen_predeterminada_url
+                       COUNT(DISTINCT ce.id) as estampados_count
                 FROM combinaciones c
                 LEFT JOIN combinacion_colores cc ON c.id = cc.combinacion_id
                 LEFT JOIN colores co ON cc.color_id = co.id
                 LEFT JOIN combinacion_telas ct ON c.id = ct.combinacion_id
-                LEFT JOIN tipos_tela t ON ct.tela_id = t.id
+                LEFT JOIN tipos_tela t ON ct.tipo_tela_id = t.id
                 LEFT JOIN combinacion_proveedores cp ON c.id = cp.combinacion_id
                 LEFT JOIN proveedores p ON cp.proveedor_id = p.id
                 LEFT JOIN combinacion_estampados ce ON c.id = ce.combinacion_id
-                LEFT JOIN combinacion_imagenes ci ON c.id = ci.combinacion_id AND ci.es_predeterminada = 1
                 WHERE c.activo = 1
                 GROUP BY c.id
                 ORDER BY c.created_at DESC
-            `),
-            pool.query('SELECT * FROM colores WHERE activo = 1 ORDER BY nombre'),
-            pool.query('SELECT * FROM tipos_tela WHERE activo = 1 ORDER BY nombre'),
-            pool.query('SELECT * FROM proveedores WHERE activo = 1 ORDER BY nombre'),
-            pool.query('SELECT * FROM codigos_estampado WHERE activo = 1 ORDER BY codigo'),
-            pool.query(`
+            `);
+        } catch (error) {
+            console.warn('Error en consulta de combinaciones, usando consulta simple:', error.message);
+            combinacionesResult = await pool.query('SELECT * FROM combinaciones WHERE activo = 1 ORDER BY created_at DESC');
+        }
+
+        // Obtener métricas del dashboard
+        let dashboardResult;
+        try {
+            dashboardResult = await pool.query(`
                 SELECT 
                     COUNT(*) as total_combinaciones,
                     SUM(COALESCE(pc.precio_venta, 0)) as ingresos_totales,
@@ -108,16 +112,46 @@ app.get('/api/dashboard-data', async (req, res) => {
                 FROM combinaciones c
                 LEFT JOIN precios_combinaciones pc ON c.id = pc.combinacion_id
                 WHERE c.activo = 1
-            `)
-        ]);
+            `);
+        } catch (error) {
+            console.warn('Error en consulta de dashboard, usando métricas básicas:', error.message);
+            dashboardResult = [{
+                total_combinaciones: combinacionesResult[0].length,
+                ingresos_totales: 0,
+                costos_totales: 0,
+                ganancias_totales: 0,
+                promedio_margen_ganancia: 0
+            }];
+        }
+
+        // Obtener imágenes de combinaciones si la tabla existe
+        let imagenesResult = [];
+        try {
+            imagenesResult = await pool.query(`
+                SELECT ci.combinacion_id, ci.imagen_url, ci.es_predeterminada
+                FROM combinacion_imagenes ci
+                WHERE ci.es_predeterminada = 1
+            `);
+        } catch (error) {
+            console.warn('Tabla combinacion_imagenes no disponible:', error.message);
+        }
+
+        // Combinar datos de imágenes con combinaciones
+        const combinacionesConImagenes = combinacionesResult[0].map(combinacion => {
+            const imagen = imagenesResult.find(img => img.combinacion_id === combinacion.id);
+            return {
+                ...combinacion,
+                imagen_predeterminada_url: imagen ? imagen.imagen_url : null
+            };
+        });
 
         res.json({
-            combinaciones: combinacionesResult[0],
+            combinaciones: combinacionesConImagenes,
             colores: coloresResult[0],
             telas: telasResult[0],
             proveedores: proveedoresResult[0],
             estampados: estampadosResult[0],
-            dashboard: dashboardResult[0][0]
+            dashboard: dashboardResult[0]
         });
     } catch (error) {
         console.error('Error obteniendo datos del dashboard:', error);
@@ -153,6 +187,24 @@ app.get('/health', (req, res) => {
         environment: NODE_ENV,
         timestamp: new Date().toISOString()
     });
+});
+
+// Ruta temporal para verificar y crear tablas faltantes
+app.get('/check-tables', async (req, res) => {
+    try {
+        const checkAndFixTables = require('./check-and-fix-tables');
+        await checkAndFixTables();
+        res.json({ 
+            message: 'Verificación de tablas completada',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error verificando tablas:', error);
+        res.status(500).json({ 
+            error: 'Error verificando tablas',
+            details: error.message
+        });
+    }
 });
 
 // Ruta temporal para inicializar base de datos con nuevo schema
